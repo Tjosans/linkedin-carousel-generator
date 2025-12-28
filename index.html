@@ -686,33 +686,6 @@
             aiGenerateBtn.disabled = false;
         });
         
-        // Helper function to extract clean topic from AI prompt
-        function extractCleanTopic(rawTopic) {
-            // If it's a long description (likely from AI input), extract the core topic
-            if (rawTopic.length > 100) {
-                // Look for patterns like "carousel about X" or "create a carousel about X"
-                const aboutMatch = rawTopic.match(/carousel about (.+?)(?:\.|for|with|My audience|$)/i);
-                if (aboutMatch) {
-                    return aboutMatch[1].trim();
-                }
-                
-                // Look for "teach X" or "help with X"
-                const teachMatch = rawTopic.match(/(?:teach|help (?:with|people)|show).+?(?:how to|to) (.+?)(?:\.|My|for|$)/i);
-                if (teachMatch) {
-                    return teachMatch[1].trim();
-                }
-                
-                // Fallback: take first sentence
-                const firstSentence = rawTopic.split(/[.!?]/)[0];
-                if (firstSentence.length < rawTopic.length) {
-                    return firstSentence.trim();
-                }
-            }
-            
-            // Return original if it's already clean
-            return rawTopic;
-        }
-        
         // Shared PDF generation function
         async function generateCarouselPDF(data) {
             const { jsPDF } = window.jspdf;
@@ -725,27 +698,24 @@
             const pageWidth = 8;
             const pageHeight = 8;
             
-            // Clean the topic for better title slide
-            const cleanTopic = extractCleanTopic(data.topic);
-            
             // Title Slide
             pdf.setFillColor(data.primaryColor);
             pdf.rect(0, 0, pageWidth, pageHeight, 'F');
             
             pdf.setTextColor('#FFFFFF');
-            pdf.setFontSize(48);
+            pdf.setFontSize(60);
             pdf.setFont('helvetica', 'bold');
             
-            const topicLines = pdf.splitTextToSize(cleanTopic, pageWidth - 1.5);
-            const topicY = pageHeight * 0.4;
+            const topicLines = pdf.splitTextToSize(data.topic, pageWidth - 1);
+            const topicY = pageHeight * 0.45;
             topicLines.forEach((line, index) => {
                 pdf.text(line, pageWidth / 2, topicY + (index * 0.6), { align: 'center' });
             });
             
-            pdf.setFontSize(20);
-            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(18);
+            pdf.setFont('helvetica', 'bold');
             pdf.setTextColor(data.accentColor);
-            pdf.text('Swipe to learn more →', pageWidth / 2, pageHeight * 0.75, { align: 'center' });
+            pdf.text('Swipe to learn more →', pageWidth / 2, pageHeight * 0.8, { align: 'center' });
             
             // Individual Tip Slides
             data.tips.forEach((tip, index) => {
@@ -767,25 +737,13 @@
                     pdf.text(line, 0.5, titleY + (i * 0.45));
                 });
                 
-                // Split content into sentences and add spacing between them
                 pdf.setFontSize(18);
                 pdf.setFont('helvetica', 'normal');
                 pdf.setTextColor('#4A4A4A');
-                
-                // Split content by sentences (., !, ?)
-                const sentences = tip.content.match(/[^.!?]+[.!?]+/g) || [tip.content];
-                let contentY = titleY + (titleLines.length * 0.45) + 0.6;
-                
-                sentences.forEach((sentence, sentenceIndex) => {
-                    const sentenceLines = pdf.splitTextToSize(sentence.trim(), pageWidth - 1);
-                    sentenceLines.forEach((line, lineIndex) => {
-                        pdf.text(line, 0.5, contentY);
-                        contentY += 0.28;
-                    });
-                    // Add extra space after each sentence
-                    if (sentenceIndex < sentences.length - 1) {
-                        contentY += 0.15;
-                    }
+                const contentLines = pdf.splitTextToSize(tip.content, pageWidth - 1);
+                let contentY = titleY + (titleLines.length * 0.45) + 0.5;
+                contentLines.forEach((line, i) => {
+                    pdf.text(line, 0.5, contentY + (i * 0.3));
                 });
                 
                 pdf.setFillColor(data.primaryColor);
@@ -807,27 +765,12 @@
             pdf.text('Quick Recap', pageWidth / 2, 1.2, { align: 'center' });
             
             pdf.setTextColor('#FFFFFF');
-            pdf.setFontSize(18);
+            pdf.setFontSize(20);
             pdf.setFont('helvetica', 'normal');
-            let recapY = 2.2;
-            
+            let recapY = 2;
             data.tips.forEach((tip, index) => {
-                // Truncate long titles to fit on one line
-                let displayTitle = tip.title;
-                if (displayTitle.length > 45) {
-                    displayTitle = displayTitle.substring(0, 42) + '...';
-                }
-                
-                const checkmark = '✓  ';
-                const recapLines = pdf.splitTextToSize(checkmark + displayTitle, pageWidth - 1.5);
-                
-                recapLines.forEach((line, lineIndex) => {
-                    pdf.text(line, pageWidth / 2, recapY, { align: 'center' });
-                    recapY += 0.35;
-                });
-                
-                // Add small spacing between items
-                recapY += 0.15;
+                pdf.text(`✓  ${tip.title}`, pageWidth / 2, recapY, { align: 'center' });
+                recapY += 0.5;
             });
             
             // CTA Slide
